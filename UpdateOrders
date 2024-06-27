@@ -1,0 +1,42 @@
+global class UpdateOrders implements Schedulable {
+    
+    global void execute(SchedulableContext sc) {
+        // Get today's date
+        Date today = Date.today();
+        
+        // Calculate delivery dates
+        Date fiveDaysFromToday = today.addDays(5);
+        Date threeDaysFromToday = today.addDays(3);
+        Date oneDayFromToday = today.addDays(1);
+        
+        // Query for orders with delivery dates 5, 3, or 1 day away from today
+        List<Order> ordersToUpdate = [SELECT Id, Delivery_Date__c, SendSMS__c
+                                      FROM Order
+                                      WHERE Delivery_Date__c IN :new List<Date>{fiveDaysFromToday, threeDaysFromToday, oneDayFromToday}];
+        
+        // Iterate through the orders and update 'SendSMS__c' field to true
+        for(Order ord : ordersToUpdate) {
+            // Ensure we update one record per second
+            System.enqueueJob(new UpdateOrderJob(ord));
+        }
+    }
+    
+    // Inner class to perform the update for each order
+    global class UpdateOrderJob implements Queueable {
+        private Order order;
+        
+        // Constructor
+        global UpdateOrderJob(Order ord) {
+            this.order = ord;
+        }
+        
+        global void execute(QueueableContext context) {
+            // Update 'SendSMS__c' field to true
+            order.SendSMS__c = true;
+            update order;
+            // Delay execution to ensure one record is updated per second
+            Long endTime = System.now().getTime() + 1000;
+            while(System.now().getTime() < endTime); // Busy waiting
+        }
+    }
+}
