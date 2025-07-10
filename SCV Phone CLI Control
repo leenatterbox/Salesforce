@@ -2,16 +2,20 @@ Package Install Link: https://login.salesforce.com/packaging/installPackage.apex
 
 Add following code in script engine component in 'Outbound Calls' policy before the connect a call app:
 
+--enable_debug("email")
 local userName = session.get('CallerEmailAddress')
 
 -- Query Salesforce to get CLI for caller
     local sfRes = connector.sf_query(connectorId, "SELECT Id, CallerID__c, User__c FROM CallerIDControl__c WHERE User__c IN (SELECT nbavs__User__c FROM nbavs__User__c WHERE nbavs__Username__c = '"..userName.."')", "CLI")
-
-    -- Check for errors in the Salesforce query
+	local recs = table.getn(sfRes)
+    -- Check for errors in the Salesforce query or 0 records
     if sfRes == false then
         local lastError = last_error()
         print("Last error was: " .. lastError)
         return false
+    elseif recs == 0 then
+    	print("0 records")
+    	return false
     end
 
 local userCLI = '+'..session.expand_macro("$(SForce_CLI.CallerID__c)")
